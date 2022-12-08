@@ -1,0 +1,13 @@
+version: "3.7"
+services:
+  blackout-bot:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: blackout-bot
+    volumes:
+      - ./.db:/app/.db
+    restart: always
+
+volumes:
+  blackout-bot-data:

@@ -1,0 +1,122 @@
+package db
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+
+	"github.com/dgraph-io/badger/v3"
+)
+
+const dbPath = ".db"
+
+type DB struct {
+	db *badger.DB
+}
+
+func InitDB() (*DB, error) {
+	opts := badger.DefaultOptions(dbPath)
+	opts.Logger = nil
+
+	db, err := badger.Open(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DB{
+		db: db,
+	}, nil
+}
+
+func (d *DB) Close() error {
+	return d.db.Close()
+}
+
+func (d *DB) Set(key []byte, value interface{}) error {
+	var valueBytes bytes.Buffer
+	err := json.NewEncoder(&valueBytes).Encode(value)
+	if err != nil {
+		return err
+	}
+
+	return d.db.Update(
+		func(txn *badger.Txn) error {
+			err := txn.Set(key, valueBytes.Bytes())
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+	)
+}
+
+func (d *DB) Get(key []byte, v interface{}) error {
+	if v == nil {
+		return fmt.Errorf("v is not set")
+	}
+
+	var data []byte
+
+	err := d.db.View(
+		func(txn *badger.Txn) error {
+			item, err := txn.Get(key)
+			if err != nil {
+				return err
+			}
+
+			err = item.Value(
+				func(val []byte) error {
+					data = append(data, val...)
+
+					return nil
+				},
+			)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(data, v)
+}
+
+func (d *DB) GetAll(prefix []byte) (map[string][]byte, error) {
+	users := make(map[string][]byte)
+
+	err := d.db.View(
+		func(txn *badger.Txn) error {
+			it := txn.NewIterator(badger.DefaultIteratorOptions)
+			defer it.Close()
+
+			for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+				item := it.Item()
+
+				err := item.Value(
+					func(val []byte) error {
+						users[string(item.Key())] = val
+						return nil
+					},
+				)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func (d *DB) Drop(prefix []byte) error {
+	return d.db.DropPrefix(prefix)
+}
