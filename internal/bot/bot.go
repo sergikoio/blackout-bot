@@ -76,7 +76,7 @@ func (b *bot) InitUpdates() {
 
 func (b *bot) Worker() {
 	for {
-		time.Sleep(time.Second * 30)
+		time.Sleep(time.Second * 60)
 		timeNow, err := servertime.GetKyivTimeNow()
 		if err != nil {
 			log.Error().Err(err).Send()
