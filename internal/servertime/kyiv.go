@@ -8,7 +8,7 @@ import (
 )
 
 type TimeApiResp struct {
-	DateTime string `json:"dateTime"`
+	DateTime time.Time `json:"datetime"`
 }
 
 func GetKyivTimeNow() (time.Time, error) {
@@ -16,7 +16,7 @@ func GetKyivTimeNow() (time.Time, error) {
 
 	req, err := http.NewRequest(
 		http.MethodGet,
-		"https://www.timeapi.io/api/Time/current/zone?timeZone=Europe/Kiev",
+		"https://www.worldtimeapi.org/api/timezone/Europe/Kiev",
 		nil,
 	)
 	if err != nil {
@@ -39,10 +39,5 @@ func GetKyivTimeNow() (time.Time, error) {
 		return time.Time{}, err
 	}
 
-	timeKyivNow, err := time.Parse("2006-01-02T15:04:05", timeApiResp.DateTime)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	return timeKyivNow, nil
+	return timeApiResp.DateTime, nil
 }
