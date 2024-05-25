@@ -1,13 +1,15 @@
 package schedule
 
-type schedule struct {
-	GroupOne   [][]Time `json:"group_1"`
-	GroupTwo   [][]Time `json:"group_2"`
-	GroupThree [][]Time `json:"group_3"`
-	GroupFour  [][]Time `json:"group_4"`
-}
+type schedule map[string]map[string]map[string]ElCode
 
 type Time struct {
-	Start int `json:"start"`
-	End   int `json:"end"`
+	Start int
+	End   int
+	Type  ElCode
+}
+
+func (t Time) Reset() Time {
+	t.Start = -1
+	t.End = -1
+	return t
 }

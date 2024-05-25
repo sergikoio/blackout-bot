@@ -27,8 +27,8 @@ Bot for notification of actual power outages and notification of planned outages
 ### How Bot Works:
 1. You configure the config
 2. You add the bot to the channel or chat and give it the necessary rights
-3. If there is no response within 15 seconds from the set endpoint, the bot will send information that the electricity has been turned off
-4. If there were no shutdowns during the last 40 minutes, the bot will send a shutdown message 30 minutes before the scheduled shutdown
+3. If there is no response from the set endpoint within 15 seconds (or 3 ping attempts), the bot will send information that the power is off
+4. Every evening at 19:00, the bot will send a schedule of outages for the next day for the specified group
 5. Also, in one message, if you specify (update `.env` file) which bot will update information in real time
 
 ## Requirements:
@@ -50,8 +50,6 @@ Bot for notification of actual power outages and notification of planned outages
 ## FAQ
 - Where to get the endpoint?
   - You should start a server at home that will respond to any request. Or use your router (see something like: router in global). But for this you must have either a permanent IP address or DDNS on the router
-- The shutdown schedule has changed, where can I get a new one?
-   - Go to https://yasno.com.ua/schedule-turn-off-electricity-kyiv, check Page Source Code, `CTRL + F` -> `group_1`. Copy this line and reformat JS to JSON `(now not work, please wait to update)`
 - For which city is the schedule of scheduled outages made?
    - Kyiv
 - Where can I launch the bot?

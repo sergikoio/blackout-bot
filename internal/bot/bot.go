@@ -92,7 +92,6 @@ func (b *bot) Worker() {
 		hoursLastSend, minutesLastSend := totalSecsLastSend/3600, (totalSecsLastSend%3600)/60
 
 		lastScheduleSend := b.db.lastScheduleSendDB().get()
-		isSoon, soonSchedule := b.sch.IsScheduleSoon()
 		online := checker.Online()
 
 		var nowStatus status
@@ -196,22 +195,48 @@ func (b *bot) Worker() {
 			continue
 		}
 
-		if isSoon &&
-			timeNow.Unix()-lastScheduleSend.Unix() > 2400 && // 40 minutes
-			timeNow.Unix()-lastSend.Unix() > 900 && // 15 minutes
-			nowStatus == onlineStatus &&
-			!serverConfig.IsEmergency {
+		if !serverConfig.IsEmergency &&
+			timeNow.Unix()-lastScheduleSend.Unix() > 43200 && // 12 hours
+			timeNow.Hour() == 19 { // 19:00 - 19:59
+			day, _, err := schedule.GetTimeNow()
+			if err != nil {
+				log.Error().Err(err).Send()
+				continue
+			}
+
+			timeTomorrow := timeNow.AddDate(0, 0, 1)
+			tomorrowStr := timeTomorrow.Format("02.01.2006")
+
+			sch := b.sch.GetScheduleForDay(schedule.NextDay(day))
+			var schStr string
+			for _, t := range sch {
+				var additionalInfo string
+				if t.End-t.Start != 4 {
+					additionalInfo = " (продовження)"
+				}
+
+				schStr += fmt.Sprintf(
+					"▪️%s — %s%s\n",
+					GetTimeForOffWhereHour(t.Start),
+					GetTimeForOffWhereHour(t.End),
+					additionalInfo,
+				)
+			}
+
 			msg := tgbotapi.NewMessage(
 				b.channelID,
 				fmt.Sprintf(
-					"⚠️ За розкладом планових відключень о %s відбудеться відключення електроенергії",
-					GetTimeForOffWhereHour(soonSchedule.Start),
+					"🕒 Розклад планових відключень на завтра (%s):\n\n%s\nЦей графік не є на 100%% дійсним, та залежить від розпоряджень [Укренерго](https://t.me/Ukrenergo)",
+					tomorrowStr,
+					schStr,
 				),
 			)
-			if isLate() {
-				msg.DisableNotification = true
-			}
-			_, err := b.bot.Send(msg)
+
+			msg.ParseMode = tgbotapi.ModeMarkdown
+			msg.DisableNotification = true
+			msg.DisableWebPagePreview = true
+
+			_, err = b.bot.Send(msg)
 			if err != nil {
 				log.Error().Err(err).Send()
 				continue

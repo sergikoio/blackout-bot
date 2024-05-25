@@ -5,13 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
+	"strconv"
 	"time"
 
 	"blackout-bot/internal/servertime"
 )
 
+type ElCode string
+
+func (e ElCode) ElectricityAvail() bool {
+	return e == "yes" || e == "maybe"
+}
+
 type Schedule struct {
-	Sch   [][]Time
+	Sch   map[int][]Time // map[day]map[hour]
 	group int
 }
 
@@ -21,23 +29,27 @@ func NewSchedule(group int, filename string) (*Schedule, error) {
 		return nil, err
 	}
 
-	var groupSchedule [][]Time
+	var groupSchedule map[string]map[string]ElCode
 
 	switch group {
 	case 1:
-		groupSchedule = sch.GroupOne
+		groupSchedule, _ = sch["1"]
 	case 2:
-		groupSchedule = sch.GroupTwo
+		groupSchedule, _ = sch["2"]
 	case 3:
-		groupSchedule = sch.GroupThree
+		groupSchedule, _ = sch["3"]
 	case 4:
-		groupSchedule = sch.GroupFour
+		groupSchedule, _ = sch["4"]
+	case 5:
+		groupSchedule, _ = sch["5"]
+	case 6:
+		groupSchedule, _ = sch["6"]
 	default:
 		return nil, fmt.Errorf("group is not correct")
 	}
 
 	return &Schedule{
-		Sch:   groupSchedule,
+		Sch:   convertToSchedule(groupSchedule),
 		group: group,
 	}, nil
 }
@@ -57,6 +69,36 @@ func parse(filename string) (schedule, error) {
 	return s, nil
 }
 
+func convertToSchedule(sch map[string]map[string]ElCode) map[int][]Time {
+	resp := map[int][]Time{}
+
+	for dayN, day := range sch {
+		dayNum, _ := strconv.Atoi(dayN)
+
+		var times []Time
+		for hourNum, code := range day {
+			hour, _ := strconv.Atoi(hourNum)
+
+			times = append(
+				times, Time{
+					Start: hour - 1,
+					End:   hour,
+					Type:  code,
+				},
+			)
+		}
+
+		sort.Slice(
+			times, func(i, j int) bool {
+				return times[i].Start < times[j].Start
+			},
+		)
+		resp[dayNum] = times
+	}
+
+	return resp
+}
+
 func GetTimeNow() (day, hour int, err error) {
 	timeNow, err := servertime.GetKyivTimeNow()
 	if err != nil {
@@ -69,144 +111,69 @@ func GetTimeNow() (day, hour int, err error) {
 	hour = timeNow.Hour()
 	switch timeNow.Weekday() {
 	case time.Monday:
-		day = 0
-	case time.Tuesday:
 		day = 1
-	case time.Wednesday:
+	case time.Tuesday:
 		day = 2
-	case time.Thursday:
+	case time.Wednesday:
 		day = 3
-	case time.Friday:
+	case time.Thursday:
 		day = 4
-	case time.Saturday:
+	case time.Friday:
 		day = 5
-	case time.Sunday:
+	case time.Saturday:
 		day = 6
+	case time.Sunday:
+		day = 7
 	}
 
 	return day, hour, nil
 }
 
 func NextDay(day int) int {
-	if day == 6 {
-		return 0
+	if day == 7 {
+		return 1
 	}
 	return day + 1
 }
 
-func PreviouslyDay(day int) int {
-	if day == 0 {
-		return 6
-	}
-	return day - 1
-}
+func (s *Schedule) GetScheduleForDay(day int) []Time {
+	var resp []Time
 
-func MinusHour(nowHour int) int {
-	if nowHour == 0 {
-		return 23
-	}
-	return nowHour - 1
-}
+	var currTime = Time{}.Reset()
+	for _, t := range s.Sch[day] {
+		avail := t.Type.ElectricityAvail()
 
-func SchedulesNearby(scheduleFirstEnd, scheduleSecondStart int) bool {
-	if scheduleFirstEnd == 24 && scheduleSecondStart == 0 {
-		return true
-	}
+		if (currTime.Start == -1 && avail) ||
+			(currTime.Start != -1 && !avail) {
+			continue
+		}
 
-	return false
-}
+		if currTime.Start == -1 && !avail {
+			currTime.Start = t.Start
+		}
+		if currTime.Start != -1 && avail {
+			currTime.End = t.Start
+			currTime.Type = "no"
 
-func (s *Schedule) IsScheduleSoon() (bool, Time) {
-	now, _ := s.GetScheduleNow()
-	if now {
-		return false, Time{}
+			resp = append(resp, currTime)
+			currTime = currTime.Reset()
+		}
 	}
 
-	_, hour, err := GetTimeNow()
-	if err != nil {
-		return false, Time{}
-	}
-
-	timeNow, err := servertime.GetKyivTimeNow()
-	if err != nil {
-		return false, Time{}
-	}
-	if timeNow.IsZero() {
-		return false, Time{}
-	}
-	timeNowMinutes := timeNow.Minute()
-
-	nextSchedule, _ := s.GetScheduleNext()
-	if MinusHour(nextSchedule.Start) == hour && timeNowMinutes >= 30 {
-		return true, nextSchedule
-	}
-
-	return false, Time{}
-}
-
-func (s *Schedule) GetScheduleNow() (bool, Time) {
-	day, hour, err := GetTimeNow()
-	if err != nil {
-		return false, Time{}
-	}
-
-	for _, sch := range s.Sch[day] {
-		if sch.Start <= hour && sch.End > hour {
-			nextSchedule, nextDay := s.GetScheduleNext()
-			prevSchedule, prevDay := s.GetSchedulePreviously()
-
-			if nextDay != day && SchedulesNearby(sch.End, nextSchedule.Start) {
-				sch.End = nextSchedule.End
+	if currTime.Start != -1 && currTime.End == -1 {
+		day := NextDay(day)
+		for _, t := range s.Sch[day] {
+			avail := t.Type.ElectricityAvail()
+			if !avail {
+				continue
+			} else {
+				currTime.End = t.Start
+				currTime.Type = "no"
+				resp = append(resp, currTime)
+				break
 			}
-			if prevDay != day && SchedulesNearby(prevSchedule.End, sch.Start) {
-				sch.Start = prevSchedule.Start
-			}
-
-			return true, sch
 		}
 	}
 
-	return false, Time{}
-}
-
-func (s *Schedule) GetScheduleNext() (time Time, day int) {
-	day, hour, err := GetTimeNow()
-	if err != nil {
-		return Time{}, 0
-	}
-
-	for _, sch := range s.Sch[day] {
-		if sch.Start > hour {
-			return sch, day
-		}
-	}
-
-	day = NextDay(day)
-	for _, sch := range s.Sch[day] {
-		return sch, day
-	}
-
-	return Time{}, 0
-}
-
-func (s *Schedule) GetSchedulePreviously() (time Time, day int) {
-	day, hour, err := GetTimeNow()
-	if err != nil {
-		return Time{}, 0
-	}
-
-	index := -1
-	for i, sch := range s.Sch[day] {
-		if sch.Start < hour {
-			index = i
-		}
-	}
-	if index != -1 {
-		return s.Sch[day][index], day
-	}
-
-	day = PreviouslyDay(day)
-	index = len(s.Sch[day])
-
-	return s.Sch[day][index-1], day
+	return resp
 }
