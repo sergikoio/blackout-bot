@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 
+	"blackout-bot/internal/messages"
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog/log"
 
@@ -14,6 +15,11 @@ import (
 
 func main() {
 	err := godotenv.Load(".env")
+	if err != nil {
+		panic(err)
+	}
+
+	err = messages.LoadMessages("messages.json")
 	if err != nil {
 		panic(err)
 	}

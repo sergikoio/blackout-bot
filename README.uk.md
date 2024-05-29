@@ -39,8 +39,9 @@
 ## Установка:
 1. Склонуйте репозиторій `git clone https://github.com/sergikoio/blackout-bot.git`
 2. Створіть .env файл `cp  .env.example .env`
-3. Змініть `.env` файл
-4. Запустіть бота:
+3. Створіть messages.json файл `cp messages.json.example messages.json`
+4. Змініть `.env` файл та `messages.json`, якщо треба
+5. Запустіть бота:
    - Через Docker: `make build`
    - Або локально через Go:
       - `go mod download`

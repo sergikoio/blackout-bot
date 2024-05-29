@@ -2,9 +2,6 @@ package bot
 
 type status string
 
-var minutesForms = []string{"хвилину", "хвилини", "хвилин"}
-var hoursForms = []string{"годину", "години", "годин"}
-
 const (
 	offlineStatus status = "offline"
 	onlineStatus  status = "online"

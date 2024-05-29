@@ -38,9 +38,10 @@ Bot for notification of actual power outages and notification of planned outages
 
 ## Installation:
 1. Clone this repository `git clone https://github.com/sergikoio/blackout-bot.git`
-2. Create .env file `cp  .env.example .env`
-3. Edit `.env` file
-4. Run Bot:
+2. Create .env file `cp .env.example .env`
+3. Create messages.json file `cp messages.json.example messages.json`
+4. Edit `.env` file and `messages.json` if needed
+5. Run Bot:
     - With Docker: `make build`
     - Local with Go:
         - `go mod download`

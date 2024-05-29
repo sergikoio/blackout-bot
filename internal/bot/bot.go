@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"blackout-bot/internal/messages"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/rs/zerolog/log"
 
@@ -65,7 +66,6 @@ func (b *bot) InitUpdates() {
 					b.TurnEmergency(update)
 				case turnBotCommand:
 					b.TurnBot(update)
-
 				}
 
 				continue
@@ -133,13 +133,13 @@ func (b *bot) Worker() {
 			var text string
 			if nowStatus == onlineStatus {
 				text = fmt.Sprintf(
-					"🟢 Електроенергія присутня\n💡 Світло вжє є %s\n\n⏳ Останнє оновлення: %s",
+					messages.Messages.ElectricityStatusOn,
 					timeString,
 					timeNow.Format("2006-01-02 15:04:05"),
 				)
 			} else {
 				text = fmt.Sprintf(
-					"🔴 Електроенергія відсутня\n💔 Світла немає вже %s\n\n⏳ Останнє оновлення: %s",
+					messages.Messages.ElectricityStatusOff,
 					timeString,
 					timeNow.Format("2006-01-02 15:04:05"),
 				)
@@ -161,12 +161,12 @@ func (b *bot) Worker() {
 			var text string
 			if nowStatus == onlineStatus {
 				text = fmt.Sprintf(
-					"💡 Електроенергію було увімкнено. Світла не було %s",
+					messages.Messages.ElectricityTurnOn,
 					getTimeString(int(hoursLastSend), int(minutesLastSend)),
 				)
 			} else {
 				text = fmt.Sprintf(
-					"💔 Електроенергію було вимкнено. Світло було присутнє %s",
+					messages.Messages.ElectricityTurnOff,
 					getTimeString(int(hoursLastSend), int(minutesLastSend)),
 				)
 			}
@@ -217,7 +217,7 @@ func (b *bot) Worker() {
 					end += 24
 				}
 				if end-start != 4 {
-					additionalInfo = " (продовження)"
+					additionalInfo = messages.Messages.ScheduleMessageContinue
 				}
 
 				schStr += fmt.Sprintf(
@@ -231,7 +231,7 @@ func (b *bot) Worker() {
 			msg := tgbotapi.NewMessage(
 				b.channelID,
 				fmt.Sprintf(
-					"🕒 Розклад планових відключень на завтра (%s):\n\n%s\nЦей графік не є на 100%% дійсним, та залежить від розпоряджень [Укренерго](https://t.me/Ukrenergo)",
+					messages.Messages.ScheduleMessage,
 					tomorrowStr,
 					schStr,
 				),
@@ -279,12 +279,14 @@ func GetTimeForOffWhereHour(hour int) string {
 }
 
 func getTimeString(hours, minutes int) string {
-	var minutesWord, hoursWord = declOfNum(minutes, minutesForms), declOfNum(hours, hoursForms)
+	var minutesWord = declOfNum(minutes, messages.Messages.MinutesForms)
+	var hoursWord = declOfNum(hours, messages.Messages.HoursForms)
+
 	if hours <= 0 {
 		return fmt.Sprintf("%d %s", minutes, minutesWord)
 	}
 
-	return fmt.Sprintf("%d %s і %d %s", hours, hoursWord, minutes, minutesWord)
+	return fmt.Sprintf("%d %s %s %d %s", hours, hoursWord, messages.Messages.And, minutes, minutesWord)
 }
 
 func declOfNum(n int, textForms []string) string {
