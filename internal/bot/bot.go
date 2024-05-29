@@ -211,7 +211,12 @@ func (b *bot) Worker() {
 			var schStr string
 			for _, t := range sch {
 				var additionalInfo string
-				if t.End-t.Start != 4 {
+
+				end, start := t.End, t.Start
+				if end < start {
+					end += 24
+				}
+				if end-start != 4 {
 					additionalInfo = " (продовження)"
 				}
 
