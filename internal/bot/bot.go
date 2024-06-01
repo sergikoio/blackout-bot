@@ -216,7 +216,8 @@ func (b *bot) Worker() {
 				if end < start {
 					end += 24
 				}
-				if end-start != 4 {
+
+				if end-start <= 2 {
 					additionalInfo = messages.Messages.ScheduleMessageContinue
 				}
 
